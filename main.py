@@ -153,7 +153,54 @@ def profile():
         "experience_years": 14,
         "current_company": "Lencarta Ltd"
     }}
+@app.get("/github")
+def get_github():
+    import httpx
+    try:
+        r = httpx.get(
+            "https://api.github.com/users/gkmbala",
+            headers={"Accept": "application/vnd.github.v3+json"},
+            timeout=8.0
+        )
+        d = r.json()
+        return {"ok": True, "data": {
+            "login":        d.get("login"),
+            "name":         d.get("name"),
+            "avatar_url":   d.get("avatar_url"),
+            "bio":          d.get("bio"),
+            "public_repos": d.get("public_repos", 0),
+            "followers":    d.get("followers", 0),
+            "html_url":     d.get("html_url"),
+        }}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
+@app.get("/repos")
+def get_repos(limit: int = 6):
+    import httpx
+    try:
+        r = httpx.get(
+            "https://api.github.com/users/gkmbala/repos",
+            params={"sort": "updated", "per_page": 30, "type": "owner"},
+            headers={"Accept": "application/vnd.github.v3+json"},
+            timeout=8.0
+        )
+        repos = sorted(r.json(), key=lambda x: x.get("stargazers_count", 0), reverse=True)[:limit]
+        return {"ok": True, "count": len(repos), "data": [
+            {
+                "name":        repo["name"],
+                "description": repo.get("description"),
+                "language":    repo.get("language"),
+                "stars":       repo.get("stargazers_count", 0),
+                "forks":       repo.get("forks_count", 0),
+                "url":         repo["html_url"],
+                "updated_at":  repo.get("updated_at")
+            }
+            for repo in repos
+        ]}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+        
 @app.post("/chat")
 def chat(req: ChatReq):
     if len(req.message.strip()) < 2:
